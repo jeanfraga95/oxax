@@ -7,7 +7,9 @@
  * pronto para copiar no server.js (objeto CHANNELS)
  */
 
-const axios = require('axios');
+const axios      = require('axios');
+const https      = require('https');
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -18,7 +20,7 @@ async function getChannelList() {
   console.log('🔍 Buscando lista de canais no oxax.tv...\n');
 
   // O site carrega a lista via AJAX: GET /spisok
-  const res = await axios.get('https://oxax.tv/spisok', { headers: HEADERS, timeout: 15000 });
+  const res = await axios.get('https://oxax.tv/spisok', { headers: HEADERS, timeout: 15000, httpsAgent });
   const html = res.data;
 
   // Extrai todos os hrefs de canais
@@ -39,7 +41,7 @@ async function getChannelList() {
 
 async function extractM3U8(channelUrl, slug) {
   try {
-    const response = await axios.get(channelUrl, { headers: HEADERS, timeout: 10000 });
+    const response = await axios.get(channelUrl, { headers: HEADERS, timeout: 10000, httpsAgent });
     const html = response.data;
 
     const kodkMatch = html.match(/var\s+kodk\s*=\s*"([^"]+)"/);
