@@ -1,21 +1,16 @@
 {
   "name": "oxax-relay",
-  "version": "1.0.0",
-  "description": "OXAX.TV relay com links fixos por canal",
+  "version": "3.0.0",
+  "description": "OXAX.TV relay com Chromium headless — links fixos + proxy completo",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "scrape": "node scraper.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "scrape": "node scraper.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "axios": "^1.16.1",
-    "cheerio": "^1.2.0",
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "node-fetch": "^3.3.2"
+    "axios": "^1.6.0",
+    "express": "^4.18.0",
+    "puppeteer-core": "^25.1.0"
   }
 }
