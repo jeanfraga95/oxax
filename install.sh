@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-# ── Cores ────────────────────────────────────────────────────────────────────
+# ── Cores ─────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -24,7 +24,7 @@ INSTALL_DIR="/opt/oxax"
 SERVICE_NAME="oxax"
 NODE_MIN=18
 
-# ── Funções de log ────────────────────────────────────────────────────────────
+# ── Funções de log ─────────────────────────────────────────────────────────────
 log()  { echo -e "${GREEN}[✔]${NC} $*"; }
 info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
@@ -43,7 +43,7 @@ banner() {
   echo ""
 }
 
-# ── Detecta sistema ───────────────────────────────────────────────────────────
+# ── Detecta sistema ────────────────────────────────────────────────────────────
 detect_os() {
   if [ -f /etc/os-release ]; then
     . /etc/os-release
@@ -59,7 +59,7 @@ detect_os() {
   info "Sistema detectado: ${OS_ID}"
 }
 
-# ── Verifica root / sudo ──────────────────────────────────────────────────────
+# ── Verifica root / sudo ───────────────────────────────────────────────────────
 check_root() {
   if [ "$EUID" -ne 0 ]; then
     if command -v sudo &>/dev/null; then
@@ -73,23 +73,7 @@ check_root() {
   fi
 }
 
-# ── Instala dependências do sistema ──────────────────────────────────────────
-install_deps() {
-  info "Verificando dependências do sistema..."
-
-  # curl / wget
-  if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
-    warn "curl/wget não encontrado — instalando..."
-    _pkg_install curl
-  fi
-
-  # git
-  if ! command -v git &>/dev/null; then
-    warn "git não encontrado — instalando..."
-    _pkg_install git
-  fi
-}
-
+# ── Instala pacote genérico ────────────────────────────────────────────────────
 _pkg_install() {
   local pkg="$1"
   case "${OS_ID}" in
@@ -111,12 +95,21 @@ _pkg_install() {
       $SUDO apk add --no-cache "$pkg"
       ;;
     *)
-      warn "Não foi possível instalar '$pkg' automaticamente. Instale manualmente e rode o script novamente."
+      warn "Não foi possível instalar '$pkg' automaticamente."
       ;;
   esac
 }
 
-# ── Instala Node.js ───────────────────────────────────────────────────────────
+# ── Instala dependências do sistema ───────────────────────────────────────────
+install_deps() {
+  info "Verificando dependências do sistema..."
+  if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+    warn "curl/wget não encontrado — instalando..."
+    _pkg_install curl
+  fi
+}
+
+# ── Instala Node.js ────────────────────────────────────────────────────────────
 install_node() {
   info "Verificando Node.js..."
 
@@ -152,26 +145,21 @@ install_node() {
       $SUDO apk add --no-cache nodejs npm
       ;;
     *)
-      die "Não foi possível instalar Node.js automaticamente.\nInstale manualmente: https://nodejs.org/en/download\nVersão mínima: ${NODE_MIN}"
+      die "Instale Node.js >= ${NODE_MIN} manualmente: https://nodejs.org/en/download"
       ;;
   esac
 
   log "Node.js $(node -v) instalado"
 }
 
-# ── Baixa os arquivos do projeto ──────────────────────────────────────────────
+# ── Baixa os arquivos do projeto ───────────────────────────────────────────────
 download_files() {
   info "Baixando arquivos do projeto em ${INSTALL_DIR}..."
 
   $SUDO mkdir -p "${INSTALL_DIR}"
   $SUDO chown "$(id -u):$(id -g)" "${INSTALL_DIR}"
 
-  local files=(
-    "server.js"
-    "scraper.js"
-    "package.json"
-    "README.md"
-  )
+  local files=("server.js" "scraper.js" "package.json" "README.md")
 
   for f in "${files[@]}"; do
     info "  → ${f}"
@@ -185,7 +173,7 @@ download_files() {
   log "Arquivos baixados"
 }
 
-# ── Instala dependências npm ──────────────────────────────────────────────────
+# ── Instala dependências npm ───────────────────────────────────────────────────
 install_npm() {
   info "Instalando dependências npm..."
   cd "${INSTALL_DIR}"
@@ -193,28 +181,85 @@ install_npm() {
   log "npm install concluído"
 }
 
-# ── Configura a porta ─────────────────────────────────────────────────────────
+# ── Configura a porta ──────────────────────────────────────────────────────────
 configure_port() {
   echo ""
-  read -rp "$(echo -e "${CYAN}Porta do servidor${NC} [padrão: 3051]: ")" PORT_INPUT
-  PORT_INPUT="${PORT_INPUT:-3051}"
 
-  # Valida que é número
-  if ! [[ "$PORT_INPUT" =~ ^[0-9]+$ ]] || [ "$PORT_INPUT" -lt 1 ] || [ "$PORT_INPUT" -gt 65535 ]; then
-    warn "Porta inválida, usando 3051"
-    PORT_INPUT=3051
+  # Se vier via pipe (stdin não é terminal), usa padrão sem perguntar
+  if [ -t 0 ]; then
+    read -rp "$(echo -e "${CYAN}Porta do servidor${NC} [padrão: 3000]: ")" PORT_INPUT
+  else
+    PORT_INPUT=""
+    warn "Instalação via pipe detectada — usando porta padrão 3000"
+    warn "Para mudar depois: echo 'PORT=XXXX' > ${INSTALL_DIR}/.env && oxax restart"
   fi
 
-  # Salva no .env
+  PORT_INPUT="${PORT_INPUT:-3000}"
+
+  if ! [[ "$PORT_INPUT" =~ ^[0-9]+$ ]] || [ "$PORT_INPUT" -lt 1 ] || [ "$PORT_INPUT" -gt 65535 ]; then
+    warn "Porta inválida, usando 3000"
+    PORT_INPUT=3000
+  fi
+
   echo "PORT=${PORT_INPUT}" > "${INSTALL_DIR}/.env"
   log "Porta configurada: ${PORT_INPUT}"
 }
 
-# ── Cria serviço systemd ──────────────────────────────────────────────────────
+# ── Abre a porta no firewall ───────────────────────────────────────────────────
+open_firewall() {
+  local port
+  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3000)
+
+  info "Verificando firewall para porta ${port}..."
+
+  # ufw (Ubuntu/Debian)
+  if command -v ufw &>/dev/null; then
+    if $SUDO ufw status | grep -q "Status: active"; then
+      $SUDO ufw allow "${port}/tcp" > /dev/null 2>&1 && \
+        log "ufw: porta ${port}/tcp liberada"
+    else
+      info "ufw inativo — sem alterações"
+    fi
+    return
+  fi
+
+  # firewalld (CentOS/RHEL/Fedora)
+  if command -v firewall-cmd &>/dev/null; then
+    if $SUDO firewall-cmd --state 2>/dev/null | grep -q "running"; then
+      $SUDO firewall-cmd --permanent --add-port="${port}/tcp" > /dev/null 2>&1
+      $SUDO firewall-cmd --reload > /dev/null 2>&1
+      log "firewalld: porta ${port}/tcp liberada"
+    else
+      info "firewalld inativo — sem alterações"
+    fi
+    return
+  fi
+
+  # iptables direto
+  if command -v iptables &>/dev/null; then
+    if ! $SUDO iptables -C INPUT -p tcp --dport "${port}" -j ACCEPT 2>/dev/null; then
+      $SUDO iptables -I INPUT -p tcp --dport "${port}" -j ACCEPT
+      log "iptables: porta ${port}/tcp liberada"
+      # Tenta persistir
+      if command -v netfilter-persistent &>/dev/null; then
+        $SUDO netfilter-persistent save > /dev/null 2>&1 || true
+      elif command -v service &>/dev/null && $SUDO service iptables save &>/dev/null 2>&1; then
+        true
+      fi
+    else
+      log "iptables: porta ${port} já liberada"
+    fi
+    return
+  fi
+
+  warn "Nenhum firewall detectado — verifique manualmente se a porta ${port} está aberta"
+}
+
+# ── Cria serviço systemd ───────────────────────────────────────────────────────
 create_service() {
   if ! command -v systemctl &>/dev/null; then
-    warn "systemd não disponível — o serviço não será criado automaticamente"
-    warn "Para iniciar manualmente: cd ${INSTALL_DIR} && node server.js"
+    warn "systemd não disponível"
+    warn "Inicie manualmente: cd ${INSTALL_DIR} && node server.js"
     return
   fi
 
@@ -222,16 +267,19 @@ create_service() {
 
   local node_bin
   node_bin="$(command -v node)"
+  local run_user
+  run_user="$(id -un)"
 
   $SUDO tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null <<EOF
 [Unit]
 Description=OXAX Relay — Links Fixos para OXAX.TV
 Documentation=https://github.com/jeanfraga95/oxax
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-User=$(id -un)
+User=${run_user}
 WorkingDirectory=${INSTALL_DIR}
 EnvironmentFile=-${INSTALL_DIR}/.env
 ExecStart=${node_bin} server.js
@@ -240,8 +288,6 @@ RestartSec=5
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=${SERVICE_NAME}
-
-# Segurança básica
 NoNewPrivileges=true
 PrivateTmp=true
 
@@ -250,24 +296,41 @@ WantedBy=multi-user.target
 EOF
 
   $SUDO systemctl daemon-reload
-  $SUDO systemctl enable  "${SERVICE_NAME}" --now
+  $SUDO systemctl enable "${SERVICE_NAME}"
+  $SUDO systemctl restart "${SERVICE_NAME}"
   log "Serviço ${SERVICE_NAME} habilitado e iniciado"
 }
 
-# ── Cria atalho de linha de comando ──────────────────────────────────────────
+# ── Cria atalho CLI ────────────────────────────────────────────────────────────
 create_cli() {
   $SUDO tee /usr/local/bin/oxax > /dev/null <<'EOCLI'
 #!/usr/bin/env bash
-# CLI helper para gerenciar o OXAX Relay
 SERVICE="oxax"
 INSTALL_DIR="/opt/oxax"
 
 case "${1:-help}" in
-  start)    sudo systemctl start   "$SERVICE" && echo "✅ Iniciado"     ;;
-  stop)     sudo systemctl stop    "$SERVICE" && echo "🛑 Parado"       ;;
-  restart)  sudo systemctl restart "$SERVICE" && echo "🔄 Reiniciado"   ;;
-  status)   sudo systemctl status  "$SERVICE" --no-pager                ;;
-  logs)     sudo journalctl -u "$SERVICE" -f                            ;;
+  start)    sudo systemctl start   "$SERVICE" && echo "✅ Iniciado"   ;;
+  stop)     sudo systemctl stop    "$SERVICE" && echo "🛑 Parado"     ;;
+  restart)  sudo systemctl restart "$SERVICE" && echo "🔄 Reiniciado" ;;
+  status)   sudo systemctl status  "$SERVICE" --no-pager              ;;
+  logs)     sudo journalctl -u "$SERVICE" -f                          ;;
+  port)
+    PORT_NEW="${2:-}"
+    if [[ "$PORT_NEW" =~ ^[0-9]+$ ]]; then
+      echo "PORT=${PORT_NEW}" | sudo tee "${INSTALL_DIR}/.env" > /dev/null
+      # Abre no firewall
+      if command -v ufw &>/dev/null && sudo ufw status | grep -q "active"; then
+        sudo ufw allow "${PORT_NEW}/tcp" > /dev/null 2>&1
+      elif command -v firewall-cmd &>/dev/null; then
+        sudo firewall-cmd --permanent --add-port="${PORT_NEW}/tcp" > /dev/null 2>&1
+        sudo firewall-cmd --reload > /dev/null 2>&1
+      fi
+      sudo systemctl restart "$SERVICE"
+      echo "✅ Porta alterada para ${PORT_NEW} e serviço reiniciado"
+    else
+      echo "Uso: oxax port <numero>"
+    fi
+    ;;
   update)
     echo "🔄 Atualizando..."
     curl -fsSL https://raw.githubusercontent.com/jeanfraga95/oxax/main/install.sh | bash
@@ -275,8 +338,17 @@ case "${1:-help}" in
   scrape)
     cd "$INSTALL_DIR" && node scraper.js
     ;;
-  *)
-    echo "Uso: oxax {start|stop|restart|status|logs|update|scrape}"
+  help|*)
+    echo ""
+    echo "  oxax start          — inicia o serviço"
+    echo "  oxax stop           — para o serviço"
+    echo "  oxax restart        — reinicia o serviço"
+    echo "  oxax status         — exibe status"
+    echo "  oxax logs           — logs em tempo real"
+    echo "  oxax port <número>  — muda a porta e reinicia"
+    echo "  oxax scrape         — descobre novos canais"
+    echo "  oxax update         — atualiza para versão mais recente"
+    echo ""
     ;;
 esac
 EOCLI
@@ -285,45 +357,56 @@ EOCLI
   log "Comando 'oxax' disponível no terminal"
 }
 
-# ── Verifica se o servidor respondeu ─────────────────────────────────────────
+# ── Health check ───────────────────────────────────────────────────────────────
 health_check() {
   info "Aguardando servidor iniciar..."
   local port
-  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3051)
+  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3000)
   local tries=0
-  until curl -sf "http://localhost:${port}/" > /dev/null 2>&1; do
+  until curl -sf "http://127.0.0.1:${port}/" > /dev/null 2>&1; do
     sleep 1
     tries=$((tries+1))
-    [ $tries -ge 15 ] && { warn "Health check falhou — verifique: oxax logs"; return; }
+    if [ $tries -ge 20 ]; then
+      warn "Health check falhou. Veja os logs: oxax logs"
+      return
+    fi
   done
-  log "Servidor respondendo em http://localhost:${port}/"
+  log "Servidor respondendo em http://127.0.0.1:${port}/"
 }
 
-# ── Resumo final ──────────────────────────────────────────────────────────────
+# ── Resumo final ───────────────────────────────────────────────────────────────
 summary() {
   local port
-  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3051)
+  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3000)
+
+  # Detecta IP externo
+  local ext_ip
+  ext_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "SEU_IP")
+
   echo ""
-  echo -e "${BOLD}${GREEN}══════════════════════════════════════════${NC}"
+  echo -e "${BOLD}${GREEN}══════════════════════════════════════════════${NC}"
   echo -e "${BOLD}  ✅  OXAX Relay instalado com sucesso!${NC}"
-  echo -e "${BOLD}${GREEN}══════════════════════════════════════════${NC}"
+  echo -e "${BOLD}${GREEN}══════════════════════════════════════════════${NC}"
   echo ""
-  echo -e "  🌐  Acesse:      ${CYAN}http://localhost:${port}/${NC}"
-  echo -e "  📥  Playlist:    ${CYAN}http://localhost:${port}/playlist.m3u${NC}"
-  echo -e "  📁  Instalado em: ${INSTALL_DIR}"
+  echo -e "  🌐  Local:       ${CYAN}http://localhost:${port}/${NC}"
+  echo -e "  🌍  Rede:        ${CYAN}http://${ext_ip}:${port}/${NC}"
+  echo -e "  📥  Playlist:    ${CYAN}http://${ext_ip}:${port}/playlist.m3u${NC}"
+  echo -e "  📁  Diretório:   ${INSTALL_DIR}"
   echo ""
-  echo -e "  ${BOLD}Comandos úteis:${NC}"
-  echo -e "    oxax status    — ver status do serviço"
-  echo -e "    oxax logs      — ver logs em tempo real"
-  echo -e "    oxax restart   — reiniciar"
-  echo -e "    oxax scrape    — descobrir novos canais"
-  echo -e "    oxax update    — atualizar para versão mais recente"
+  echo -e "  ${BOLD}Alterar porta:${NC}  oxax port 3051"
+  echo -e "  ${BOLD}Ver logs:${NC}       oxax logs"
+  echo -e "  ${BOLD}Status:${NC}         oxax status"
+  echo ""
+  echo -e "  ${YELLOW}⚠  Se não acessar externamente, verifique:${NC}"
+  echo -e "     1. Firewall do provedor/painel (Hetzner, DigitalOcean, etc.)"
+  echo -e "        Libere a porta ${port}/TCP nas regras de entrada"
+  echo -e "     2. ${CYAN}oxax logs${NC} para ver se há erros"
   echo ""
   echo -e "  📖  Docs: ${CYAN}https://github.com/jeanfraga95/oxax${NC}"
   echo ""
 }
 
-# ── MAIN ──────────────────────────────────────────────────────────────────────
+# ── MAIN ───────────────────────────────────────────────────────────────────────
 main() {
   banner
   detect_os
@@ -333,6 +416,7 @@ main() {
   download_files
   install_npm
   configure_port
+  open_firewall
   create_service
   create_cli
   health_check
