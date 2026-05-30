@@ -1,7 +1,7 @@
 {
   "name": "oxax-relay",
-  "version": "3.0.0",
-  "description": "OXAX.TV relay com Chromium headless — links fixos + proxy completo",
+  "version": "4.0.0",
+  "description": "OXAX.TV relay — arquitetura híbrida com extração client-side",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
