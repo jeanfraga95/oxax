@@ -12,7 +12,7 @@
 const express = require('express');
 const axios   = require('axios');
 const app     = express();
-const PORT    = process.env.PORT || 3000;
+const PORT    = process.env.PORT || 3051;
 
 // ============================================================
 // MAPA DE CANAIS  slug-fixo => URL da página no oxax.tv
