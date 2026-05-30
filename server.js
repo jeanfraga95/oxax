@@ -9,10 +9,14 @@
  * 3. Cache de 30 min evita bater no oxax.tv a cada request.
  */
 
-const express = require('express');
-const axios   = require('axios');
-const app     = express();
-const PORT    = process.env.PORT || 3000;
+const express    = require('express');
+const axios      = require('axios');
+const https      = require('https');
+const app        = express();
+const PORT       = process.env.PORT || 3000;
+
+// Ignora erro de certificado SSL (oxax.tv usa cert de xittv.net)
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 // ============================================================
 // MAPA DE CANAIS  slug-fixo => URL da página no oxax.tv
@@ -54,7 +58,7 @@ const HEADERS = {
 // Extrai a URL m3u8 atual da página de um canal
 // ============================================================
 async function extractM3U8(channelUrl) {
-  const resp = await axios.get(channelUrl, { headers: HEADERS, timeout: 12000 });
+  const resp = await axios.get(channelUrl, { headers: HEADERS, timeout: 12000, httpsAgent });
   const html = resp.data;
 
   // var kodk="2/index.m3u8?k=TOKEN";
