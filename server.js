@@ -12,7 +12,7 @@
 const express = require('express');
 const axios   = require('axios');
 const app     = express();
-const PORT    = process.env.PORT || 3051;
+const PORT    = process.env.PORT || 3000;
 
 // ============================================================
 // MAPA DE CANAIS  slug-fixo => URL da página no oxax.tv
@@ -273,8 +273,15 @@ app.get('/admin/cache', (_req, res) => {
 });
 
 // ============================================================
-app.listen(PORT, () => {
-  console.log(`\n🚀  OXAX Relay  →  http://localhost:${PORT}`);
-  console.log(`📋  Canais      →  http://localhost:${PORT}/`);
-  console.log(`📥  Playlist    →  http://localhost:${PORT}/playlist.m3u\n`);
+// Escuta em 0.0.0.0 para aceitar conexões externas (não só localhost)
+app.listen(PORT, '0.0.0.0', () => {
+  const ifaces = require('os').networkInterfaces();
+  let externalIP = '0.0.0.0';
+  Object.values(ifaces).flat().forEach(i => {
+    if (i.family === 'IPv4' && !i.internal) externalIP = i.address;
+  });
+  console.log(`\n🚀  OXAX Relay iniciado!`);
+  console.log(`   Local:    http://localhost:${PORT}/`);
+  console.log(`   Rede:     http://${externalIP}:${PORT}/`);
+  console.log(`   Playlist: http://${externalIP}:${PORT}/playlist.m3u\n`);
 });
