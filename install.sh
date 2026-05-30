@@ -196,13 +196,13 @@ install_npm() {
 # ── Configura a porta ─────────────────────────────────────────────────────────
 configure_port() {
   echo ""
-  read -rp "$(echo -e "${CYAN}Porta do servidor${NC} [padrão: 3000]: ")" PORT_INPUT
-  PORT_INPUT="${PORT_INPUT:-3000}"
+  read -rp "$(echo -e "${CYAN}Porta do servidor${NC} [padrão: 3051]: ")" PORT_INPUT
+  PORT_INPUT="${PORT_INPUT:-3051}"
 
   # Valida que é número
   if ! [[ "$PORT_INPUT" =~ ^[0-9]+$ ]] || [ "$PORT_INPUT" -lt 1 ] || [ "$PORT_INPUT" -gt 65535 ]; then
-    warn "Porta inválida, usando 3000"
-    PORT_INPUT=3000
+    warn "Porta inválida, usando 3051"
+    PORT_INPUT=3051
   fi
 
   # Salva no .env
@@ -289,7 +289,7 @@ EOCLI
 health_check() {
   info "Aguardando servidor iniciar..."
   local port
-  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3000)
+  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3051)
   local tries=0
   until curl -sf "http://localhost:${port}/" > /dev/null 2>&1; do
     sleep 1
@@ -302,7 +302,7 @@ health_check() {
 # ── Resumo final ──────────────────────────────────────────────────────────────
 summary() {
   local port
-  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3000)
+  port=$(grep -oP 'PORT=\K\d+' "${INSTALL_DIR}/.env" 2>/dev/null || echo 3051)
   echo ""
   echo -e "${BOLD}${GREEN}══════════════════════════════════════════${NC}"
   echo -e "${BOLD}  ✅  OXAX Relay instalado com sucesso!${NC}"
